@@ -1,0 +1,45 @@
+name: APK Derle
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Zip dosyasını aç
+        run: |
+          ZIPFILE=$(ls *.zip | head -n1)
+          unzip -o "$ZIPFILE" -d _proje
+          SRC=$(find _proje -maxdepth 1 -mindepth 1 -type d | head -n1)
+          cp -r "$SRC"/. .
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - run: npm install
+      - run: npx cap add android
+
+      - name: Dikey ekran yönünü kilitle
+        run: |
+          sed -i 's/android:name=".MainActivity"/android:name=".MainActivity"\n            android:screenOrientation="portrait"/' android/app/src/main/AndroidManifest.xml
+
+      - run: npx @capacitor/assets generate --android
+      - run: npx cap sync android
+      - run: chmod +x android/gradlew
+      - run: cd android && ./gradlew assembleDebug --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kpss-tarih-app-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
